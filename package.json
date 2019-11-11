@@ -1,6 +1,6 @@
 {
   "name": "spark-monitoring",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "A tool to extract metrics from Spark Jobs",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -63,7 +63,7 @@
     "url": "git+https://github.com/addomafi/spark-monitoring"
   },
   "bin": {
-    "zabbix-spark-monitoring": "./dist/bin/zabbix-spark-monitor.js"
+    "zabbix-spark-monitor": "./dist/bin/zabbix-monitor.js"
   },
   "files": [
     "dist/**/*"
