@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import * as Bluebird from 'bluebird';
 import * as commander from 'commander';
 import * as _ from 'lodash';
@@ -65,7 +63,7 @@ export class ZabbixMonitor {
       const runningApps: Application[] = await sparkMon.getRunningApps();
       const stats: SparkStatistics[] = await Bluebird.map(
         runningApps,
-        (item: Application) => {
+        async (item: Application) => {
           return sparkMon.getApplicationStats(item);
         },
         {
@@ -119,6 +117,3 @@ export class ZabbixMonitor {
     this.logger.trace(_.extend({ "message": "Adding a metrics to Zabbix..." }, metric));
   }
 }
-
-// Start process
-Promise.resolve((new ZabbixMonitor()).run());

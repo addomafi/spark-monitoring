@@ -76,63 +76,67 @@ export class SparkMonitoring {
         totalDelay: _.sumBy(queued, 'batchDuration'),
       });
     } catch (err) {
+      this.logger.debug("No streaming batch was found!");
       // Skip from streaming data
       sparkStats = _.extend(application, {
         streaming: false,
       });
     }
 
-    // Retrieve Jobs from an application
-    const jobs: Job[] = await self.sparkApi.listJobs(application.id);
-
-    const processedJobs = _.filter(
-      jobs,
-      (o: Job) =>
-        (o.status === 'COMPLETED' || o.status === 'SUCCEEDED') &&
-        (!metricCheckpoint.lastJobId || o.jobId > metricCheckpoint.lastJobId),
-    );
-    let jobsByName = _.groupBy(processedJobs, 'name');
-    const jobsStats: JobStatistics[] = [];
-    _.forOwn(jobsByName, (filteredJobs: Job[], key: string) => {
-      jobsStats.push({
-        max: _.maxBy(filteredJobs, 'jobDuration').jobDuration,
-        mean: _.meanBy(filteredJobs, 'jobDuration'),
-        min: _.minBy(filteredJobs, 'jobDuration').jobDuration,
-        name: key,
-        window: moment(_.first(filteredJobs).completionTime).diff(moment(_.last(filteredJobs).submissionTime)),
-      });
-    });
-
-    // Take into account running jobs
-    const running = _.filter(jobs, (o: Job) => o.status === 'RUNNING');
-    sparkStats.runningJobs = running.length;
-    sparkStats.jobStats = jobsStats;
-    if (!sparkStats.jobStats.length) {
-      jobsByName = _.groupBy(running, 'name');
+    try {
+      // Retrieve Jobs from an application
+      const jobs: Job[] = await self.sparkApi.listJobs(application.id);
+  
+      const processedJobs = _.filter(
+        jobs,
+        (o: Job) =>
+          (o.status === 'COMPLETED' || o.status === 'SUCCEEDED') &&
+          (!metricCheckpoint.lastJobId || o.jobId > metricCheckpoint.lastJobId),
+      );
+      let jobsByName = _.groupBy(processedJobs, 'name');
+      const jobsStats: JobStatistics[] = [];
       _.forOwn(jobsByName, (filteredJobs: Job[], key: string) => {
         jobsStats.push({
           max: _.maxBy(filteredJobs, 'jobDuration').jobDuration,
           mean: _.meanBy(filteredJobs, 'jobDuration'),
           min: _.minBy(filteredJobs, 'jobDuration').jobDuration,
           name: key,
-          window: moment().diff(moment(_.last(filteredJobs).submissionTime)),
+          window: moment(_.first(filteredJobs).completionTime).diff(moment(_.last(filteredJobs).submissionTime)),
         });
       });
-      if (jobsStats.length) {
-        sparkStats.jobStats = jobsStats;
-      } else {
-        sparkStats.jobStats = metricCheckpoint.lastJobStats;
+  
+      // Take into account running jobs
+      const running = _.filter(jobs, (o: Job) => o.status === 'RUNNING');
+      sparkStats.runningJobs = running.length;
+      sparkStats.jobStats = jobsStats;
+      if (!sparkStats.jobStats.length) {
+        jobsByName = _.groupBy(running, 'name');
+        _.forOwn(jobsByName, (filteredJobs: Job[], key: string) => {
+          jobsStats.push({
+            max: _.maxBy(filteredJobs, 'jobDuration').jobDuration,
+            mean: _.meanBy(filteredJobs, 'jobDuration'),
+            min: _.minBy(filteredJobs, 'jobDuration').jobDuration,
+            name: key,
+            window: moment().diff(moment(_.last(filteredJobs).submissionTime)),
+          });
+        });
+        if (jobsStats.length) {
+          sparkStats.jobStats = jobsStats;
+        } else {
+          sparkStats.jobStats = metricCheckpoint.lastJobStats;
+        }
       }
+  
+      // Set the last processed batch
+      const firstJob = _.head(processedJobs);
+      if (firstJob) {
+        metricCheckpoint.lastJobId = firstJob.jobId;
+      }
+      metricCheckpoint.lastJobStats = sparkStats.jobStats;
+      self.analisysStorage.store(application.id, metricCheckpoint);      
+    } catch (err) {
+      this.logger.debug("No one job was found!");
     }
-
-    // Set the last processed batch
-    const firstJob = _.head(processedJobs);
-    if (firstJob) {
-      metricCheckpoint.lastJobId = firstJob.jobId;
-    }
-    metricCheckpoint.lastJobStats = sparkStats.jobStats;
-    self.analisysStorage.store(application.id, metricCheckpoint);
-
     return sparkStats;
   }
 }
