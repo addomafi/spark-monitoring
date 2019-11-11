@@ -1,5 +1,6 @@
 import * as _ from 'lodash';
 import * as moment from 'moment';
+import { Logger } from '../lib/logger';
 import { Application, Job, JobStatistics, Options, SparkStatistics, StreamingBatch } from './domain';
 import { AnalisysStorage } from './local-storage';
 import { SparkApi } from './spark-api';
@@ -8,12 +9,14 @@ import { SparkApi } from './spark-api';
  * This class do all the required maths to extract metrics from an Spark Application
  */
 export class SparkMonitoring {
+  private logger: Logger;
   private sparkApi: SparkApi;
   private analisysStorage: AnalisysStorage;
 
   constructor(options: Options) {
-    this.sparkApi = new SparkApi(options);
     this.analisysStorage = new AnalisysStorage(options.tempDir);
+    this.logger = new Logger(options);
+    this.sparkApi = new SparkApi(options);
   }
 
   /**
@@ -31,23 +34,22 @@ export class SparkMonitoring {
    */
   public async getApplicationStats(application: Application): Promise<SparkStatistics> {
     const self = this;
-    const stats: StreamingBatch[] = await self.sparkApi.listStreamingBatches(application.id);
     let sparkStats: SparkStatistics;
-
+    this.logger.info(`Starting accoutability of metrics for ${application.name} application.`);
     // Retrieve checkpoint for analysis
     let metricCheckpoint = self.analisysStorage.get(application.id);
     // If not initialized
     if (!metricCheckpoint) {
+      this.logger.debug(`No checkpoint was found for Application ID ${application.id}.`);
       metricCheckpoint = {
         lastBatchId: 0,
         lastJobId: 0,
       };
     }
-    if (!stats.length) {
-      sparkStats = _.extend(application, {
-        streaming: false,
-      });
-    } else {
+
+    try {
+      const stats: StreamingBatch[] = await self.sparkApi.listStreamingBatches(application.id)
+
       // Take into account total records in backlog
       const queued = _.filter(stats, (o: StreamingBatch) => o.status && o.status !== 'COMPLETED');
 
@@ -72,6 +74,11 @@ export class SparkMonitoring {
         ),
         streaming: true,
         totalDelay: _.sumBy(queued, 'batchDuration'),
+      });
+    } catch (err) {
+      // Skip from streaming data
+      sparkStats = _.extend(application, {
+        streaming: false,
       });
     }
 

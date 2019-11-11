@@ -4,6 +4,7 @@ import * as assert from 'assert';
 import * as _ from 'lodash';
 import * as moment from 'moment';
 import { get, RequestPromise } from 'request-promise';
+import { Logger } from '../lib/logger';
 import { Application, Job, Options, StreamingBatch } from './domain';
 
 const APP_STATE: string[] = ['NEW', 'NEW_SAVING', 'SUBMITTED', 'ACCEPTED', 'RUNNING', 'FINISHED', 'FAILED', 'KILLED'];
@@ -12,6 +13,7 @@ const APP_STATE: string[] = ['NEW', 'NEW_SAVING', 'SUBMITTED', 'ACCEPTED', 'RUNN
  * This class handle all required methods to extract metrics from an YARN Resource Manager
  */
 export class SparkApi {
+  private logger: Logger;
   private host: string;
   private portResourceMgr: number;
   private portYarnWebProxy: number;
@@ -19,6 +21,7 @@ export class SparkApi {
 
   constructor(options: Options) {
     this.host = options.host || 'localhost';
+    this.logger = new Logger(options);
     this.portResourceMgr = options.portResourceMgr || 8088;
     this.portYarnWebProxy = options.portYarnWebProxy || 20888;
     this.timeout = options.timeout || 5000;
@@ -35,8 +38,8 @@ export class SparkApi {
       url += `?states=${state}`;
     }
     const data: { apps: { app: any } } = await get({
-      json: true,
-      url: url,
+      "json": true,
+      "url": url,
     });
     try {
       const apps: Application[] = [];
@@ -55,8 +58,10 @@ export class SparkApi {
         );
       });
 
+      this.logger.trace(`Applications was retrieved succesfully from YARN, ${apps.length} was found!`);
       return apps;
     } catch (err) {
+      this.logger.trace("No one application was found on YARN!");
       return [];
     }
   }
@@ -67,16 +72,18 @@ export class SparkApi {
    */
   public async listStreamingBatches(applicationId: string): Promise<StreamingBatch[]> {
     const data: any = await get({
-      json: true,
-      url: `http://${this.host}:${this.portYarnWebProxy}/proxy/${applicationId}/api/v1/applications/${applicationId}/streaming/batches`,
+      "json": true,
+      "url": `http://${this.host}:${this.portYarnWebProxy}/proxy/${applicationId}/api/v1/applications/${applicationId}/streaming/batches`,
     });
     try {
       const batches: StreamingBatch[] = [];
       _.forEach(data, item => {
         batches.push(_.pick(item, ['batchId', 'status', 'batchDuration', 'inputSize', 'processingTime']));
       });
+      this.logger.trace(`Streaming Batches was retrieved succesfully from Spark UI, ${batches.length} was found!`);
       return batches;
     } catch (err) {
+      this.logger.trace("No one Streaming Batch was found on Spark UI!");
       return [];
     }
   }
@@ -117,8 +124,10 @@ export class SparkApi {
         }
         jobs.push(tempJob);
       });
+      this.logger.trace(`Jobs was retrieved succesfully from Spark UI, ${jobs.length} was found!`);
       return jobs;
     } catch (err) {
+      this.logger.trace("No one Job was found on Spark UI!");
       return [];
     }
   }
