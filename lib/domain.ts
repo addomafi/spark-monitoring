@@ -7,6 +7,7 @@ export interface Options {
   portYarnWebProxy?: number;
   timeout?: number;
   tempDir?: string;
+  logLevel?: string;
 }
 
 /** Represents an Analisys controller */
@@ -41,6 +42,7 @@ export interface JobStatistics {
 export interface SparkStatistics extends Application {
   streaming: boolean;
   pendingRecords?: number;
+  processedRecords?: number;
   totalDelay?: number;
   runningJobs?: number;
   jobStats?: JobStatistics[];
