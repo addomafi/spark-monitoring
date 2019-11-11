@@ -10,7 +10,7 @@ import { ZabbixMonitor } from '../../lib/zabbix-monitor';
 import { sparkShared } from './spark-shared';
 
 describe('ZabbixMonitor', () => {
-    let zabbixMonitor: ZabbixMonitor;
+    const zabbixMonitor: ZabbixMonitor = new ZabbixMonitor();
     const mock = sinon.mock(ZabbixSender.prototype);
 
     before(() => {
@@ -21,14 +21,12 @@ describe('ZabbixMonitor', () => {
 
         // Init shared config
         sparkShared(nock);
-
-        this.zabbixMonitor = new ZabbixMonitor();
     });
 
     describe('Working with Spark Monitoring', () => {
         describe('when request for running Spark Apps', () => {
             it('should get all running Apps', (done) => {
-                this.zabbixMonitor.run().then(() => {
+                zabbixMonitor.run().then(() => {
                     mock.verify();
                     done();
                 }).catch(done);
