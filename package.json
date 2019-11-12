@@ -12,6 +12,7 @@
     "format": "prettier --write \"{lib,test,bin}/**/*.{ts,js}\" \"*.ts\"",
     "lint": "tslint -p tsconfig.json",
     "prepublishOnly": "npm test",
+    "postpublishOnly": "./node_modules/.bin/nyc report --reporter=text-lcov | ./node_modules/.bin/coveralls",
     "clean": "del-cli dist temporary coverage"
   },
   "keywords": [
@@ -47,6 +48,7 @@
     "@types/sinon": "^7.5.0",
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
+    "coveralls": "^3.0.7",
     "del-cli": "^3.0.0",
     "mocha": "^6.2.2",
     "nock": "^11.6.0",
@@ -76,7 +78,9 @@
     "exclude": [
       "**/*.d.ts",
       "test",
-      "bin"
+      "bin",
+      "dist/bin/zabbix-monitor.js",
+      "dist/lib/domain.js"
     ],
     "reporter": [
       "html"

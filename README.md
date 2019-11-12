@@ -1,4 +1,6 @@
-# spark-monitoring
+# spark-monitoring 
+[![Build Status](https://travis-ci.org/addomafi/spark-monitoring.svg?branch=master)](https://travis-ci.org/addomafi/spark-monitoring)
+[![Coverage Status](https://coveralls.io/repos/github/addomafi/spark-monitoring/badge.svg?branch=master)](https://coveralls.io/github/addomafi/spark-monitoring?branch=master)
 
 A tool to extract metrics from Spark Applications, it applies to Streaming and Jobs.
 
