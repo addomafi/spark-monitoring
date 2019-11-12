@@ -53,14 +53,14 @@ export class SparkMonitoring {
       // Take into account total records in backlog
       const queued = _.filter(stats, (o: StreamingBatch) => o.status && o.status !== 'COMPLETED');
 
+      // Filters only unprocessed batchs
+      const backlog = _.filter(
+        stats,
+        (o: StreamingBatch) =>
+          o.status === 'COMPLETED' && (!metricCheckpoint.lastBatchId || o.batchId > metricCheckpoint.lastBatchId),
+      )
       // Set the last processed batch
-      const firstBatch = _.head(
-        _.filter(
-          stats,
-          (o: StreamingBatch) =>
-            o.status === 'COMPLETED' && (!metricCheckpoint.lastBatchId || o.batchId > metricCheckpoint.lastBatchId),
-        ),
-      );
+      const firstBatch = _.head(backlog);
       if (firstBatch) {
         metricCheckpoint.lastBatchId = firstBatch.batchId;
       }
@@ -69,7 +69,7 @@ export class SparkMonitoring {
       sparkStats = _.extend(application, {
         pendingRecords: _.sumBy(queued, 'inputSize'),
         processedRecords: _.sumBy(
-          _.filter(stats, (o: StreamingBatch) => o.status && o.status === 'COMPLETED'),
+          _.filter(backlog, (o: StreamingBatch) => o.status && o.status === 'COMPLETED'),
           'inputSize',
         ),
         streaming: true,
@@ -94,9 +94,9 @@ export class SparkMonitoring {
           (!metricCheckpoint.lastJobId || o.jobId > metricCheckpoint.lastJobId),
       );
       let jobsByName = _.groupBy(processedJobs, 'name');
-      const jobsStats: JobStatistics[] = [];
+      sparkStats.jobStats = [];
       _.forOwn(jobsByName, (filteredJobs: Job[], key: string) => {
-        jobsStats.push({
+        sparkStats.jobStats.push({
           max: _.maxBy(filteredJobs, 'jobDuration').jobDuration,
           mean: _.meanBy(filteredJobs, 'jobDuration'),
           min: _.minBy(filteredJobs, 'jobDuration').jobDuration,
@@ -108,11 +108,11 @@ export class SparkMonitoring {
       // Take into account running jobs
       const running = _.filter(jobs, (o: Job) => o.status === 'RUNNING');
       sparkStats.runningJobs = running.length;
-      sparkStats.jobStats = jobsStats;
+      // Only take inplace if we don't have metrics for completed Jobs
       if (!sparkStats.jobStats.length) {
         jobsByName = _.groupBy(running, 'name');
         _.forOwn(jobsByName, (filteredJobs: Job[], key: string) => {
-          jobsStats.push({
+          sparkStats.jobStats.push({
             max: _.maxBy(filteredJobs, 'jobDuration').jobDuration,
             mean: _.meanBy(filteredJobs, 'jobDuration'),
             min: _.minBy(filteredJobs, 'jobDuration').jobDuration,
@@ -120,9 +120,8 @@ export class SparkMonitoring {
             window: moment().diff(moment(_.last(filteredJobs).submissionTime)),
           });
         });
-        if (jobsStats.length) {
-          sparkStats.jobStats = jobsStats;
-        } else {
+        // If didn't get any metric, replay the last metric
+        if (!sparkStats.jobStats.length) {
           sparkStats.jobStats = metricCheckpoint.lastJobStats;
         }
       }
