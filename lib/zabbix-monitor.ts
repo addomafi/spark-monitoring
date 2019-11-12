@@ -29,7 +29,8 @@ export class ZabbixMonitor {
       .option('--yarn-port <port>', 'YARN Resource Manager Port', parseInt)
       .option('--yarn-proxy-port <port>', 'YARN Web Proxy Port', parseInt)
       .option('--yarn-timeout <timeout>', 'YARN Timeout', parseInt)
-      .option('-d, --debug', 'Debug mode');
+      .option('-d, --debug', 'Debug mode')
+      .option('-t, --temp-dir <temp_dir>', 'Temporary directory');
 
     commander.parse(process.argv);
 
@@ -47,6 +48,7 @@ export class ZabbixMonitor {
       logLevel: commander.debug ? 'trace' : 'info',
       portResourceMgr: commander.yarnPort,
       portYarnWebProxy: commander.yarnProxyPort,
+      tempDir: commander.tempDir,
       timeout: commander.yarnTimeout,
     };
 
